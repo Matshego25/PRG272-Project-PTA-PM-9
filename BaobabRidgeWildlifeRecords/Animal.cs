@@ -9,12 +9,12 @@ namespace BaobabRidgeWildlifeRecords
     public class Animal
     {
         //These are the properties representing the 7 required fields
-        public string AnimalID { get; set; }
-        public string Name { get; set; }
-        public string Species { get; set; }
+        public string AnimalID { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Species { get; set; } = "";
         public int Age { get; set; }
-        
-        // Backing field for RecoveryScore to ensure it is between 0 and 100
+
+        // Backing field for RecoveryScore
         private int _recoveryScore;
 
         public int RecoveryScore
@@ -29,26 +29,25 @@ namespace BaobabRidgeWildlifeRecords
                 HousingUnit = classification.HousingUnit;
             }
         }
-        public string Status { get; set; }
-        public string HousingUnit { get; set; }
+        public string Status { get; set; } = "";
+        public string HousingUnit { get; set; } = "";
 
         public Animal() { }
 
-        public Animal(string animalID, string name, string species, int age, int recoveryScore, string status, string housingUnit)
+        // Status and housing unit are not passed in, the RecoveryScore setter works them out
+        public Animal(string animalID, string name, string species, int age, int recoveryScore)
         {
             AnimalID = animalID;
             Name = name;
             Species = species;
             Age = age;
             RecoveryScore = recoveryScore;
-            Status = status;
-            HousingUnit = housingUnit;
         }
 
-        //Makes format ID | NAME | SPECIES | AGE | RECOVERYSCORE | STATUS | HOUSINGUNIT AS PER REQUIREMENTS
+        //Makes format ID|NAME|SPECIES|AGE|RECOVERYSCORE|STATUS|HOUSINGUNIT AS PER REQUIREMENTS (no spaces around the pipes)
         public string ToFileString()
         {
-            return $"{AnimalID} | {Name} | {Species} | {Age} | {RecoveryScore} | {Status} | {HousingUnit}";
+            return $"{AnimalID}|{Name}|{Species}|{Age}|{RecoveryScore}|{Status}|{HousingUnit}";
         }
     }
 }
