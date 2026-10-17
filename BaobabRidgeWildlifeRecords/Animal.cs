@@ -13,7 +13,7 @@ namespace BaobabRidgeWildlifeRecords
         public string Name { get; set; }
         public string Species { get; set; }
         public int Age { get; set; }
-
+        
         // Backing field for RecoveryScore to ensure it is between 0 and 100
         private int _recoveryScore;
 
