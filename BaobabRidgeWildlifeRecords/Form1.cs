@@ -141,6 +141,17 @@ namespace BaobabRidgeWildlifeRecords
         // Feature 1: checks every box, then saves the new animal to the list and the file
         private void AddAnimal_Click(object? sender, EventArgs e)
         {
+            if (!ValidateInputs()) return;   // an error was already shown
+
+            string id = txtId.Text.Trim().ToUpper();
+            string name = txtName.Text.Trim();
+            string species = txtSpecies.Text.Trim();
+            int age = int.Parse(txtAge.Text.Trim());
+            int score = int.Parse(txtScore.Text.Trim());
+
+            var result = AnimalClassifier.GetClassification(score);
+            Animal newAnimal = new Animal(id, name, species, age, score, result.Status, result.HousingUnit);
+
             try
             {
                 //Fetch what you typed in the box
@@ -193,6 +204,7 @@ namespace BaobabRidgeWildlifeRecords
                     txtScore.Focus();
                     return;
                 }
+            }
 
                 // Create the new animal (our classifier handles the status and housing unit!)
                 Animal newAnimal = new Animal(id, name, species, age, score);
@@ -204,8 +216,12 @@ namespace BaobabRidgeWildlifeRecords
                 // Add the new line at the end of the file (if this fails we jump to the catch and the list stays the same)
                 File.AppendAllText(filePath, prefix + newAnimal.ToFileString() + Environment.NewLine);
 
-                // Add it to our list so it pops up on the screen instantly!
-                AnimalList.Add(newAnimal);
+            // Name: 1 to 30 characters, no | symbol
+            if (name.Length < 1 || name.Length > 30 || name.Contains("|"))
+            {
+                ShowError("Name must be 1 to 30 characters and cannot contain |.", txtName);
+                return false;
+            }
 
                 // Clear out the typing boxes for the next animal
                 txtAnimalID.Clear();
@@ -224,10 +240,23 @@ namespace BaobabRidgeWildlifeRecords
             {
                 MessageBox.Show($"A file error occurred (File may be in use): {ex.Message}", "IO Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            catch (Exception ex)
+
+            // Recovery Score: whole number 0 to 100
+            int score;
+            if (!int.TryParse(txtScore.Text.Trim(), out score) || score < 0 || score > 100)
             {
-                MessageBox.Show("Something went wrong: " + ex.Message);
+                ShowError("Recovery Score must be a whole number from 0 to 100.", txtScore);
+                return false;
             }
+
+            return true;   // everything is valid
+        }
+
+        private void ShowError(string message, TextBox box)
+        {
+            MessageBox.Show(message, "Invalid input", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            box.Focus();
+            box.SelectAll();
         }
 
         /// <summary>
