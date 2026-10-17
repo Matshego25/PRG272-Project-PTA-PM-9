@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Windows.Forms;
 using System.Xml.Linq;
+using System.Text.RegularExpressions;
 
 namespace BaobabRidgeWildlifeRecords
 {
@@ -122,47 +123,124 @@ namespace BaobabRidgeWildlifeRecords
             }
         }
 
+
         private void AddAnimal_Click(object sender, EventArgs e)
         {
+            if (!ValidateInputs()) return;   // an error was already shown
+
+            string id = txtId.Text.Trim().ToUpper();
+            string name = txtName.Text.Trim();
+            string species = txtSpecies.Text.Trim();
+            int age = int.Parse(txtAge.Text.Trim());
+            int score = int.Parse(txtScore.Text.Trim());
+
+            var result = AnimalClassifier.GetClassification(score);
+            Animal newAnimal = new Animal(id, name, species, age, score, result.Status, result.HousingUnit);
+
             try
             {
-                //Fetch what you typed in the box 
-                string name = txtName.Text.Trim();
-                string species = txtSpecies.Text.Trim();
-
-                // Check if age and score are actual numbers
-                if (!int.TryParse(txtAge.Text, out int age) || !int.TryParse(txtScore.Text, out int score))
-                {
-                    MessageBox.Show("Hey bro! Age and Score need to be numbers!", "Oops!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                //  Make a cool ID automatically (like WR-0025)
-                string newId = $"WR-{AnimalList.Count + 1:D4}";
-
-                // Compute status and housing unit same as file loader
-                string status = score >= 70 ? "Healthy" : score >= 40 ? "Recovering" : "Critical";
-                string housingUnit = age < 1 ? "Nursery" : "General";
-
-                // Create the new animal (our classifier handles the rest!)
-                Animal newAnimal = new Animal(newId, name, species, age, score, status, housingUnit);
-
-                // Add it to our list so it pops up on the screen instantly!
-                AnimalList.Add(newAnimal);
-
-                // Clear out the typing boxes for the next animal
-                txtName.Clear();
-                txtSpecies.Clear();
-                txtAge.Clear();
-                txtScore.Clear();
-
-                MessageBox.Show("Animal added successfully!", "Awesome!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                File.AppendAllText(filePath, Environment.NewLine + newAnimal.ToFileString());
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Something went wrong: " + ex.Message);
+                MessageBox.Show("Could not save to animals.txt: " + ex.Message);
+                return;
             }
+
+            AnimalList.Add(newAnimal);
+            dataGridView1.DataSource = AnimalList;
+
+            txtId.Clear();
+            txtName.Clear();
+            txtSpecies.Clear();
+            txtAge.Clear();
+            txtScore.Clear();
+            txtId.Focus();
         }
+
+        private bool ValidateInputs()
+        {
+            string id = txtId.Text.Trim().ToUpper();
+            string name = txtName.Text.Trim();
+            string species = txtSpecies.Text.Trim();
+
+            // Animal ID must look like WR-0001
+            bool idIsValid = true;
+            if (id.Length != 7 || !id.StartsWith("WR-"))
+            {
+                idIsValid = false;
+            }
+            else
+            {
+                foreach (char c in id.Substring(3))
+                {
+                    if (c < '0' || c > '9')
+                    {
+                        idIsValid = false;
+                    }
+                }
+            }
+
+            if (idIsValid == false)
+            {
+                ShowError("Animal ID must look like WR-0001 (WR- then 4 digits).", txtId);
+                return false;
+            }
+
+            // Animal ID must not already exist
+            foreach (Animal a in AnimalList)
+            {
+                if (a.AnimalID.ToUpper() == id)
+                {
+                    ShowError("Animal ID " + id + " already exists.", txtId);
+                    return false;
+                }
+            }
+
+            // Name: 1 to 30 characters, no | symbol
+            if (name.Length < 1 || name.Length > 30 || name.Contains("|"))
+            {
+                ShowError("Name must be 1 to 30 characters and cannot contain |.", txtName);
+                return false;
+            }
+
+            // Species: 1 to 30 characters, no | symbol
+            if (species.Length < 1 || species.Length > 30 || species.Contains("|"))
+            {
+                ShowError("Species must be 1 to 30 characters and cannot contain |.", txtSpecies);
+                return false;
+            }
+
+            // Age: whole number 0 to 100
+            int age;
+            if (!int.TryParse(txtAge.Text.Trim(), out age) || age < 0 || age > 100)
+            {
+                ShowError("Age must be a whole number from 0 to 100.", txtAge);
+                return false;
+            }
+
+            // Recovery Score: whole number 0 to 100
+            int score;
+            if (!int.TryParse(txtScore.Text.Trim(), out score) || score < 0 || score > 100)
+            {
+                ShowError("Recovery Score must be a whole number from 0 to 100.", txtScore);
+                return false;
+            }
+
+            return true;   // everything is valid
+        }
+
+        private void ShowError(string message, TextBox box)
+        {
+            MessageBox.Show(message, "Invalid input", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            box.Focus();
+            box.SelectAll();
+        }
+
+
+
+
+
 
         private void txtSearch_TextChanged(object sender, EventArgs e)
         {
