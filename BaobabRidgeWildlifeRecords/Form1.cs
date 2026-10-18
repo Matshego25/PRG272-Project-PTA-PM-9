@@ -1,6 +1,8 @@
 using System;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
@@ -11,7 +13,7 @@ namespace BaobabRidgeWildlifeRecords
         // BindingList allows the DataGridView to update automatically when data changes
         public BindingList<Animal> AnimalList { get; set; } = new BindingList<Animal>();
 
-        // animals.txt has to be next to the .exe, so we build the path from the program folder
+        // animals.txt path relative to the executable
         private string filePath = Path.Combine(AppContext.BaseDirectory, "animals.txt");
 
         // Tracks the animal currently being edited
@@ -23,24 +25,26 @@ namespace BaobabRidgeWildlifeRecords
             ConfigureDataGridView();
             LoadAnimalsFromFile();
 
-            // Hook up the update controls
+            // Wire up event handlers
             dataGridView1.CellClick += dataGridView1_CellClick;
             btnSearchID.Click += btnSearchID_Click;
             btnSaveChanges.Click += btnSaveChanges_Click;
             btnClear.Click += btnClear_Click;
+            btnDelete.Click += btnDelete_Click;
+            btnGenerateSummary.Click += btnGenerateSummary_Click;
 
             // Start in Add mode
             SetEditMode(false, null);
         }
 
-
-        // Sets up the 7 columns and makes the grid read-only
+        
+        /// Configures the DataGridView columns and read-only settings.
+        
         private void ConfigureDataGridView()
         {
             dataGridView1.AutoGenerateColumns = false;
             dataGridView1.Columns.Clear();
 
-            // Add the 7 required columns in the exact order specified by the project brief
             dataGridView1.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "AnimalID", HeaderText = "Animal ID" });
             dataGridView1.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "Name", HeaderText = "Name" });
             dataGridView1.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "Species", HeaderText = "Species" });
@@ -49,7 +53,6 @@ namespace BaobabRidgeWildlifeRecords
             dataGridView1.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "Status", HeaderText = "Status" });
             dataGridView1.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "HousingUnit", HeaderText = "Housing Unit" });
 
-            // Make grid read-only and select whole rows on click
             dataGridView1.ReadOnly = true;
             dataGridView1.AllowUserToAddRows = false;
             dataGridView1.AllowUserToDeleteRows = false;
@@ -57,12 +60,12 @@ namespace BaobabRidgeWildlifeRecords
             dataGridView1.MultiSelect = false;
             dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
-            // Bind the list to the grid
             dataGridView1.DataSource = AnimalList;
         }
 
-
-        // Reads animals.txt into the list and skips any bad lines
+        
+        /// Reads animals.txt into the list and skips malformed lines gracefully.
+       
         private void LoadAnimalsFromFile()
         {
             int skippedLinesCount = 0;
@@ -70,7 +73,6 @@ namespace BaobabRidgeWildlifeRecords
 
             try
             {
-                // If the file doesn't exist, create an empty one and show an empty grid without crashing
                 if (!File.Exists(filePath))
                 {
                     File.WriteAllText(filePath, string.Empty);
@@ -85,19 +87,16 @@ namespace BaobabRidgeWildlifeRecords
 
                     string[] parts = line.Split('|');
 
-                    // Must have exactly 7 fields
                     if (parts.Length != 7)
                     {
                         skippedLinesCount++;
                         continue;
                     }
 
-                    // ID goes to upper case so wr-0007 is read as WR-0007
                     string id = parts[0].Trim().ToUpper();
                     string name = parts[1].Trim();
                     string species = parts[2].Trim();
 
-                    // Validate numeric fields for Age and Recovery Score
                     if (!int.TryParse(parts[3].Trim(), out int age) || age < 0 || age > 100 ||
                         !int.TryParse(parts[4].Trim(), out int score) || score < 0 || score > 100)
                     {
@@ -105,19 +104,16 @@ namespace BaobabRidgeWildlifeRecords
                         continue;
                     }
 
-                    // ID must be WR- followed by exactly 4 digits
                     if (!Regex.IsMatch(id, "^WR-[0-9]{4}$"))
                     {
                         skippedLinesCount++;
                         continue;
                     }
 
-                    // Create valid Animal record (the Animal class works out the status and housing unit itself)
                     Animal animal = new Animal(id, name, species, age, score);
                     AnimalList.Add(animal);
                 }
 
-                // Tell the user once how many lines were skipped (if any)
                 if (skippedLinesCount > 0)
                 {
                     MessageBox.Show($"Loaded records successfully, but skipped {skippedLinesCount} malformed line(s).",
@@ -126,11 +122,11 @@ namespace BaobabRidgeWildlifeRecords
             }
             catch (UnauthorizedAccessException)
             {
-                MessageBox.Show("Permission denied when trying to access animals.txt. Please check file permissions.", "Access Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Permission denied when trying to access animals.txt.", "Access Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (IOException ex)
             {
-                MessageBox.Show($"A file error occurred (File may be in use): {ex.Message}", "IO Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"A file error occurred: {ex.Message}", "IO Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (Exception ex)
             {
@@ -138,226 +134,35 @@ namespace BaobabRidgeWildlifeRecords
             }
         }
 
-        // Feature 1: checks every box, then saves the new animal to the list and the file
+        
+        /// Feature 1: Add a new animal after validating all fields.
+        
         private void AddAnimal_Click(object? sender, EventArgs e)
         {
-            if (!ValidateInputs()) return;   // an error was already shown
-
-            string id = txtId.Text.Trim().ToUpper();
+            string id = txtAnimalID.Text.Trim().ToUpper();
             string name = txtName.Text.Trim();
             string species = txtSpecies.Text.Trim();
-            int age = int.Parse(txtAge.Text.Trim());
-            int score = int.Parse(txtScore.Text.Trim());
 
-            var result = AnimalClassifier.GetClassification(score);
-            Animal newAnimal = new Animal(id, name, species, age, score, result.Status, result.HousingUnit);
-
-            try
+            // Validate ID format
+            if (!Regex.IsMatch(id, "^WR-[0-9]{4}$"))
             {
-                //Fetch what you typed in the box
-                string id = txtAnimalID.Text.Trim().ToUpper();
-                string name = txtName.Text.Trim();
-                string species = txtSpecies.Text.Trim();
-
-                // Animal ID must be WR- followed by 4 digits
-                if (!Regex.IsMatch(id, "^WR-[0-9]{4}$"))
-                {
-                    MessageBox.Show("Animal ID must be WR- followed by exactly 4 digits, for example WR-0007.", "Oops!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtAnimalID.Focus();
-                    return;
-                }
-
-                // The ID has to be unique
-                if (AnimalList.Any(a => a.AnimalID == id))
-                {
-                    MessageBox.Show($"Animal ID {id} already exists. Each Animal ID must be unique.", "Oops!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtAnimalID.Focus();
-                    return;
-                }
-
-                // Name and Species: 1-30 characters and no pipe
-                if (name.Length < 1 || name.Length > 30 || name.Contains('|'))
-                {
-                    MessageBox.Show("Name must be 1-30 characters and cannot contain pipe characters.", "Oops!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtName.Focus();
-                    return;
-                }
-
-                if (species.Length < 1 || species.Length > 30 || species.Contains('|'))
-                {
-                    MessageBox.Show("Species must be 1-30 characters and cannot contain pipe characters.", "Oops!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtSpecies.Focus();
-                    return;
-                }
-
-                // Check if age and score are actual whole numbers from 0 to 100
-                if (!int.TryParse(txtAge.Text.Trim(), out int age) || age < 0 || age > 100)
-                {
-                    MessageBox.Show("Age must be a whole number between 0 and 100.", "Oops!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtAge.Focus();
-                    return;
-                }
-
-                if (!int.TryParse(txtScore.Text.Trim(), out int score) || score < 0 || score > 100)
-                {
-                    MessageBox.Show("Recovery Score must be a whole number between 0 and 100.", "Oops!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtScore.Focus();
-                    return;
-                }
-            }
-
-                // Create the new animal (our classifier handles the status and housing unit!)
-                Animal newAnimal = new Animal(id, name, species, age, score);
-
-                // If the last line in the file has no new line, add one first so two animals don't end up on one line
-                string existing = File.Exists(filePath) ? File.ReadAllText(filePath) : "";
-                string prefix = (existing.Length > 0 && !existing.EndsWith("\n")) ? Environment.NewLine : "";
-
-                // Add the new line at the end of the file (if this fails we jump to the catch and the list stays the same)
-                File.AppendAllText(filePath, prefix + newAnimal.ToFileString() + Environment.NewLine);
-
-            // Name: 1 to 30 characters, no | symbol
-            if (name.Length < 1 || name.Length > 30 || name.Contains("|"))
-            {
-                ShowError("Name must be 1 to 30 characters and cannot contain |.", txtName);
-                return false;
-            }
-
-                // Clear out the typing boxes for the next animal
-                txtAnimalID.Clear();
-                txtName.Clear();
-                txtSpecies.Clear();
-                txtAge.Clear();
-                txtScore.Clear();
-
-                MessageBox.Show($"Animal added successfully!\n\nStatus: {newAnimal.Status}\nHousing Unit: {newAnimal.HousingUnit}", "Awesome!", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                MessageBox.Show("Permission denied when trying to save to animals.txt. Please check the file isn't read-only.", "Access Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            catch (IOException ex)
-            {
-                MessageBox.Show($"A file error occurred (File may be in use): {ex.Message}", "IO Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-
-            // Recovery Score: whole number 0 to 100
-            int score;
-            if (!int.TryParse(txtScore.Text.Trim(), out score) || score < 0 || score > 100)
-            {
-                ShowError("Recovery Score must be a whole number from 0 to 100.", txtScore);
-                return false;
-            }
-
-            return true;   // everything is valid
-        }
-
-        private void ShowError(string message, TextBox box)
-        {
-            MessageBox.Show(message, "Invalid input", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            box.Focus();
-            box.SelectAll();
-        }
-
-        /// <summary>
-        /// Handles switching between Add mode and Edit mode.
-        /// </summary>
-        private void SetEditMode(bool editing, Animal? animal)
-        {
-            selectedAnimal = animal;
-
-            if (editing && animal != null)
-            {
-                // Load data into text boxes
-                txtAnimalID.Text = animal.AnimalID;
-                txtAnimalID.ReadOnly = true; // ID cannot change per requirements
-                txtName.Text = animal.Name;
-                txtSpecies.Text = animal.Species;
-                txtAge.Text = animal.Age.ToString();
-                txtScore.Text = animal.RecoveryScore.ToString();
-
-                // Disable Add button and enable Save Changes during edit mode
-                AddAnimal.Enabled = false;
-                btnSaveChanges.Enabled = true;
-            }
-            else
-            {
-                // Reset form back to Add mode
-                txtAnimalID.Clear();
-                txtAnimalID.ReadOnly = false;
-                txtName.Clear();
-                txtSpecies.Clear();
-                txtAge.Clear();
-                txtScore.Clear();
-
-                AddAnimal.Enabled = true;
-                btnSaveChanges.Enabled = false;
-                selectedAnimal = null;
-            }
-        }
-
-        // Feature 3.1: Load record when clicking a row in the DataGridView
-        private void dataGridView1_CellClick(object? sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex >= 0 && dataGridView1.Rows[e.RowIndex].DataBoundItem is Animal animal)
-            {
-                SetEditMode(true, animal);
-            }
-        }
-
-        // Feature 3.1: Search by exact Animal ID (not case-sensitive)
-        private void btnSearchID_Click(object? sender, EventArgs e)
-        {
-            string searchId = txtSearchID.Text.Trim().ToUpper();
-
-            if (string.IsNullOrEmpty(searchId))
-            {
-                MessageBox.Show("Please enter an Animal ID to search.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Animal ID must be WR- followed by exactly 4 digits (e.g., WR-0007).", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtAnimalID.Focus();
                 return;
             }
 
-            // Find match in our list
-            var match = AnimalList.FirstOrDefault(a => a.AnimalID.Equals(searchId, StringComparison.OrdinalIgnoreCase));
-
-            if (match != null)
+            // Validate ID uniqueness
+            if (AnimalList.Any(a => a.AnimalID.Equals(id, StringComparison.OrdinalIgnoreCase)))
             {
-                SetEditMode(true, match);
-
-                // Highlight the row in the grid
-                foreach (DataGridViewRow row in dataGridView1.Rows)
-                {
-                    if (row.DataBoundItem is Animal a && a.AnimalID == match.AnimalID)
-                    {
-                        row.Selected = true;
-                        break;
-                    }
-                }
+                MessageBox.Show($"Animal ID {id} already exists. Each Animal ID must be unique.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtAnimalID.Focus();
+                return;
             }
-            else
-            {
-                MessageBox.Show("Animal ID not found.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
-
-        // Feature 3.2: Clear button to exit edit mode
-        private void btnClear_Click(object? sender, EventArgs e)
-        {
-            SetEditMode(false, null);
-            dataGridView1.ClearSelection();
-        }
-
-        // Feature 3.3 & 3.4: Save Changes with validation and clean file rewriting
-        private void btnSaveChanges_Click(object? sender, EventArgs e)
-        {
-            if (selectedAnimal == null) return;
-
-            string name = txtName.Text.Trim();
-            string species = txtSpecies.Text.Trim();
 
             // Validate Name
             if (string.IsNullOrEmpty(name) || name.Length > 30 || name.Contains('|'))
             {
-                MessageBox.Show("Name must be 1-30 characters and cannot contain pipe characters.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Name must be 1–30 characters long and cannot contain pipe '|' characters.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtName.Focus();
                 return;
             }
@@ -365,7 +170,7 @@ namespace BaobabRidgeWildlifeRecords
             // Validate Species
             if (string.IsNullOrEmpty(species) || species.Length > 30 || species.Contains('|'))
             {
-                MessageBox.Show("Species must be 1-30 characters and cannot contain pipe characters.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Species must be 1–30 characters long and cannot contain pipe '|' characters.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtSpecies.Focus();
                 return;
             }
@@ -386,43 +191,194 @@ namespace BaobabRidgeWildlifeRecords
                 return;
             }
 
-            // Keep the old values so we can put them back if the file can't be saved
+            Animal newAnimal = new Animal(id, name, species, age, score);
+
+            try
+            {
+                string existing = File.Exists(filePath) ? File.ReadAllText(filePath) : "";
+                string prefix = (existing.Length > 0 && !existing.EndsWith("\n")) ? Environment.NewLine : "";
+                File.AppendAllText(filePath, prefix + newAnimal.ToFileString() + Environment.NewLine);
+
+                // Add to list so DataGridView updates instantly
+                AnimalList.Add(newAnimal);
+
+                SetEditMode(false, null);
+
+                MessageBox.Show($"Animal added successfully!\n\nStatus: {newAnimal.Status}\nHousing Unit: {newAnimal.HousingUnit}", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                MessageBox.Show("Permission denied when saving to animals.txt.", "Access Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (IOException ex)
+            {
+                MessageBox.Show($"File error occurred (file may be in use): {ex.Message}", "IO Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+       
+        /// Toggles between Add Mode and Edit Mode.
+     
+        private void SetEditMode(bool editing, Animal? animal)
+        {
+            selectedAnimal = animal;
+
+            if (editing && animal != null)
+            {
+                txtAnimalID.Text = animal.AnimalID;
+                txtAnimalID.ReadOnly = true;
+                txtName.Text = animal.Name;
+                txtSpecies.Text = animal.Species;
+                txtAge.Text = animal.Age.ToString();
+                txtScore.Text = animal.RecoveryScore.ToString();
+
+                AddAnimal.Enabled = false;
+                btnSaveChanges.Enabled = true;
+            }
+            else
+            {
+                txtAnimalID.Clear();
+                txtAnimalID.ReadOnly = false;
+                txtName.Clear();
+                txtSpecies.Clear();
+                txtAge.Clear();
+                txtScore.Clear();
+
+                AddAnimal.Enabled = true;
+                btnSaveChanges.Enabled = false;
+                selectedAnimal = null;
+            }
+        }
+
+       
+        /// Feature 3.1: Load record into form on grid click.
+       
+        private void dataGridView1_CellClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0 && dataGridView1.Rows[e.RowIndex].DataBoundItem is Animal animal)
+            {
+                SetEditMode(true, animal);
+            }
+        }
+
+        
+        /// Feature 3.1: Search by Animal ID (case-insensitive).
+        
+        private void btnSearchID_Click(object? sender, EventArgs e)
+        {
+            string searchId = txtSearchID.Text.Trim().ToUpper();
+
+            if (string.IsNullOrEmpty(searchId))
+            {
+                MessageBox.Show("Please enter an Animal ID to search.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var match = AnimalList.FirstOrDefault(a => a.AnimalID.Equals(searchId, StringComparison.OrdinalIgnoreCase));
+
+            if (match != null)
+            {
+                SetEditMode(true, match);
+
+                foreach (DataGridViewRow row in dataGridView1.Rows)
+                {
+                    if (row.DataBoundItem is Animal a && a.AnimalID == match.AnimalID)
+                    {
+                        row.Selected = true;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show("Animal ID not found.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        
+        /// Feature 3.2: Clear button resets form to Add mode.
+        
+        private void btnClear_Click(object? sender, EventArgs e)
+        {
+            SetEditMode(false, null);
+            dataGridView1.ClearSelection();
+        }
+
+        
+        /// Feature 3.3 & 3.4: Save changes and rewrite animals.txt.
+        
+        private void btnSaveChanges_Click(object? sender, EventArgs e)
+        {
+            if (selectedAnimal == null) return;
+
+            string name = txtName.Text.Trim();
+            string species = txtSpecies.Text.Trim();
+
+            if (string.IsNullOrEmpty(name) || name.Length > 30 || name.Contains('|'))
+            {
+                MessageBox.Show("Name must be 1–30 characters long and cannot contain pipe '|' characters.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtName.Focus();
+                return;
+            }
+
+            if (string.IsNullOrEmpty(species) || species.Length > 30 || species.Contains('|'))
+            {
+                MessageBox.Show("Species must be 1–30 characters long and cannot contain pipe '|' characters.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtSpecies.Focus();
+                return;
+            }
+
+            if (!int.TryParse(txtAge.Text.Trim(), out int age) || age < 0 || age > 100)
+            {
+                MessageBox.Show("Age must be a whole number between 0 and 100.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtAge.Focus();
+                return;
+            }
+
+            if (!int.TryParse(txtScore.Text.Trim(), out int score) || score < 0 || score > 100)
+            {
+                MessageBox.Show("Recovery Score must be a whole number between 0 and 100.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtScore.Focus();
+                return;
+            }
+
             string oldName = selectedAnimal.Name;
             string oldSpecies = selectedAnimal.Species;
             int oldAge = selectedAnimal.Age;
             int oldScore = selectedAnimal.RecoveryScore;
 
-            // Update animal properties (recovery score setter automatically updates status and housing)
             selectedAnimal.Name = name;
             selectedAnimal.Species = species;
             selectedAnimal.Age = age;
-            selectedAnimal.RecoveryScore = score;
+            selectedAnimal.RecoveryScore = score; // Auto-recalculates Status and HousingUnit
 
             bool saved = false;
 
             try
             {
-                // Rewrite the file with proper newlines and no trailing blank lines
                 var lines = AnimalList.Select(a => a.ToFileString());
-                File.WriteAllText(filePath, string.Join(Environment.NewLine, lines) + Environment.NewLine);
+                File.WriteAllText(filePath, string.Join(Environment.NewLine, lines) + (AnimalList.Count > 0 ? Environment.NewLine : ""));
                 saved = true;
             }
             catch (UnauthorizedAccessException)
             {
-                MessageBox.Show("Permission denied when trying to save to animals.txt. Please check the file isn't read-only.", "Access Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Permission denied when saving to animals.txt.", "Access Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (IOException ex)
             {
-                MessageBox.Show("File error (File may be in use): " + ex.Message, "IO Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"File error occurred (file may be in use): {ex.Message}", "IO Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error saving changes: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error saving changes: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
             if (!saved)
             {
-                // Put the old values back so the grid still matches the file
                 selectedAnimal.Name = oldName;
                 selectedAnimal.Species = oldSpecies;
                 selectedAnimal.Age = oldAge;
@@ -430,14 +386,131 @@ namespace BaobabRidgeWildlifeRecords
                 return;
             }
 
-            // Grab the result before the form goes back to Add mode
-            string result = $"Animal updated successfully!\n\nStatus: {selectedAnimal.Status}\nHousing Unit: {selectedAnimal.HousingUnit}";
+            string resultMsg = $"Animal updated successfully!\n\nStatus: {selectedAnimal.Status}\nHousing Unit: {selectedAnimal.HousingUnit}";
 
-            // Refresh grid and return to Add mode
             AnimalList.ResetBindings();
             SetEditMode(false, null);
 
-            MessageBox.Show(result, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(resultMsg, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        
+        /// Feature 4: Delete selected animal with confirmation dialog.
+       
+        private void btnDelete_Click(object? sender, EventArgs e)
+        {
+            if (dataGridView1.CurrentRow == null || dataGridView1.CurrentRow.DataBoundItem is not Animal selectedForDelete)
+            {
+                MessageBox.Show("Please select an animal row from the grid to delete.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var confirmResult = MessageBox.Show(
+                $"Delete {selectedForDelete.AnimalID} ({selectedForDelete.Name})? This cannot be undone.",
+                "Confirm Delete",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question
+            );
+
+            if (confirmResult == DialogResult.Yes)
+            {
+                try
+                {
+                    AnimalList.Remove(selectedForDelete);
+
+                    var lines = AnimalList.Select(a => a.ToFileString());
+                    File.WriteAllText(filePath, string.Join(Environment.NewLine, lines) + (AnimalList.Count > 0 ? Environment.NewLine : ""));
+
+                    if (selectedAnimal == selectedForDelete)
+                    {
+                        SetEditMode(false, null);
+                    }
+
+                    MessageBox.Show($"Record {selectedForDelete.AnimalID} deleted successfully.", "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    MessageBox.Show("Permission denied when updating animals.txt.", "Access Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                catch (IOException ex)
+                {
+                    MessageBox.Show($"File error occurred (file may be in use): {ex.Message}", "IO Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"An error occurred while deleting: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+       
+        // Feature 5: Generate Summary Report, display on form, and save to summary.txt.
+        
+        private void btnGenerateSummary_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                int total = AnimalList.Count;
+                string avgAgeStr = "N/A";
+                string avgScoreStr = "N/A";
+
+                int criticalCount = AnimalList.Count(a => a.Status == "Critical");
+                int seriousCount = AnimalList.Count(a => a.Status == "Serious");
+                int stableCount = AnimalList.Count(a => a.Status == "Stable");
+                int recoveringCount = AnimalList.Count(a => a.Status == "Recovering");
+                int releaseReadyCount = AnimalList.Count(a => a.Status == "Release-Ready");
+
+                if (total > 0)
+                {
+                    double avgAge = AnimalList.Average(a => a.Age);
+                    double avgScore = AnimalList.Average(a => a.RecoveryScore);
+
+                    avgAgeStr = avgAge.ToString("F2", CultureInfo.InvariantCulture);
+                    avgScoreStr = avgScore.ToString("F2", CultureInfo.InvariantCulture);
+                }
+
+                // Display on Form
+                txtSummaryDisplay.Text = $"Total Animals: {total}" + Environment.NewLine +
+                                         $"Average Age: {avgAgeStr}" + Environment.NewLine +
+                                         $"Average Score: {avgScoreStr}" + Environment.NewLine +
+                                         $"Critical: {criticalCount} | Serious: {seriousCount} | Stable: {stableCount} | Recovering: {recoveringCount} | Release-Ready: {releaseReadyCount}";
+
+                // Save to summary.txt in exact required format
+                string summaryFilePath = Path.Combine(AppContext.BaseDirectory, "summary.txt");
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+
+                string summaryContent =
+                    "BAOBAB RIDGE WILDLIFE REHABILITATION CENTRE" + Environment.NewLine +
+                    "ANIMAL SUMMARY REPORT" + Environment.NewLine +
+                    $"Generated: {timestamp}" + Environment.NewLine +
+                    "----------------------------------------" + Environment.NewLine +
+                    $"Total animals: {total}" + Environment.NewLine +
+                    $"Average age (years): {avgAgeStr}" + Environment.NewLine +
+                    $"Average recovery score: {avgScoreStr}" + Environment.NewLine +
+                    "----------------------------------------" + Environment.NewLine +
+                    "Animals per status:" + Environment.NewLine +
+                    $"Critical: {criticalCount}" + Environment.NewLine +
+                    $"Serious: {seriousCount}" + Environment.NewLine +
+                    $"Stable: {stableCount}" + Environment.NewLine +
+                    $"Recovering: {recoveringCount}" + Environment.NewLine +
+                    $"Release-Ready: {releaseReadyCount}" + Environment.NewLine;
+
+                File.WriteAllText(summaryFilePath, summaryContent);
+
+                MessageBox.Show("Summary report generated successfully and saved to summary.txt!", "Summary Generated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                MessageBox.Show("Permission denied when writing to summary.txt.", "Access Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (IOException ex)
+            {
+                MessageBox.Show($"File error occurred while writing summary.txt: {ex.Message}", "IO Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred while generating summary report: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
