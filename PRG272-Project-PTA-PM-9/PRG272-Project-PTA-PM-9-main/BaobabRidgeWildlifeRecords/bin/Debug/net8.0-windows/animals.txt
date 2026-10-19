@@ -1,0 +1,24 @@
+WR-0001|Thabo|African Penguin|4|85|Release-Ready|Pre-Release Camp
+WR-0002|Naledi|Serval|3|62|Recovering|Outdoor Enclosure
+WR-0003|Jabu|Cheetah|5|45|Stable|Recovery Ward
+WR-0004|Zola|Cape Vulture|2|19|Critical|Intensive Care Unit
+WR-0005|Temba|Leopard|6|30|Serious|High-Dependency Ward
+WR-0006|Simba|Lion Cub|1|90|Release-Ready|Pre-Release Camp
+WR-0007|Biko|Vervet Monkey|2|55|Stable|Recovery Ward
+WR-0008|Pula|Caracal|4|70|Recovering|Outdoor Enclosure
+WR-0009|Lerato|Brown Hyena|7|12|Critical|Intensive Care Unit
+WR-0010|Kego|Pangolin|3|35|Serious|High-Dependency Ward
+WR-0011|Mpho|Honey Badger|4|82|Release-Ready|Pre-Release Camp
+WR-0012|Karabo|African Wild Dog|5|68|Recovering|Outdoor Enclosure
+WR-0013|Lesedi|Sable Antelope|6|50|Stable|Recovery Ward
+WR-0014|Tshepo|African Civet|2|15|Critical|Intensive Care Unit
+WR-0015|Neo|Porcupine|3|25|Serious|High-Dependency Ward
+WR-0016|Dintle|Bat-eared Fox|1|95|Release-Ready|Pre-Release Camp
+WR-0017|Khumo|Aardwolf|4|77|Recovering|Outdoor Enclosure
+WR-0018|Palesa|Red-billed Hornbill|2|42|Stable|Recovery Ward
+WR-0019|Rorisang|Secretarybird|5|8|Critical|Intensive Care Unit
+WR-0020|Tumo|Spotted Eagle-Owl|3|28|Serious|High-Dependency Ward
+WR-0021|Refilwe|Verreauxs Eagle|6|88|Release-Ready|Pre-Release Camp
+WR-0022|Katlego|Nile Monitor|4|65|Recovering|Outdoor Enclosure
+WR-0023|Boipelo|Rock Hyrax|2|48|Stable|Recovery Ward
+WR-0024|Leruo|Kudu Calf|1|18|Critical|Intensive Care Unit
