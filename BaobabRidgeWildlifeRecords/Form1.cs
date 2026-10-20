@@ -494,21 +494,22 @@ namespace BaobabRidgeWildlifeRecords
                 string summaryFilePath = Path.Combine(AppContext.BaseDirectory, "summary.txt");
                 string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 
-                string summaryContent =
-                    "BAOBAB RIDGE WILDLIFE REHABILITATION CENTRE" + Environment.NewLine +
-                    "ANIMAL SUMMARY REPORT" + Environment.NewLine +
-                    $"Generated: {timestamp}" + Environment.NewLine +
-                    "----------------------------------------" + Environment.NewLine +
-                    $"Total animals: {total}" + Environment.NewLine +
-                    $"Average age (years): {avgAgeStr}" + Environment.NewLine +
-                    $"Average recovery score: {avgScoreStr}" + Environment.NewLine +
-                    "----------------------------------------" + Environment.NewLine +
-                    "Animals per status:" + Environment.NewLine +
-                    $"Critical: {criticalCount}" + Environment.NewLine +
-                    $"Serious: {seriousCount}" + Environment.NewLine +
-                    $"Stable: {stableCount}" + Environment.NewLine +
-                    $"Recovering: {recoveringCount}" + Environment.NewLine +
-                    $"Release-Ready: {releaseReadyCount}" + Environment.NewLine;
+               string summaryContent =
+    "BAOBAB RIDGE WILDLIFE REHABILITATION CENTRE" + Environment.NewLine +
+    "ANIMAL SUMMARY REPORT" + Environment.NewLine +
+    $"Generated: {timestamp}" + Environment.NewLine +
+    "----------------------------------------" + Environment.NewLine +
+    "Total animals:".PadRight(26) + total + Environment.NewLine +
+    "Average age (years):".PadRight(26) + avgAgeStr + Environment.NewLine +
+    "Average recovery score:".PadRight(26) + avgScoreStr + Environment.NewLine +
+    "----------------------------------------" + Environment.NewLine +
+    "Animals per status:" + Environment.NewLine +
+    "  " + "Critical:".PadRight(24) + criticalCount + Environment.NewLine +
+    "  " + "Serious:".PadRight(24) + seriousCount + Environment.NewLine +
+    "  " + "Stable:".PadRight(24) + stableCount + Environment.NewLine +
+    "  " + "Recovering:".PadRight(24) + recoveringCount + Environment.NewLine +
+    "  " + "Release-Ready:".PadRight(24) + releaseReadyCount + Environment.NewLine;
+    
 
                 File.WriteAllText(summaryFilePath, summaryContent);
 
