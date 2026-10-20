@@ -288,7 +288,22 @@ namespace BaobabRidgeWildlifeRecords
                 {
                     if (row.DataBoundItem is Animal a && a.AnimalID == match.AnimalID)
                     {
+                       dataGridView1.ClearSelection();
                         row.Selected = true;
+                        try
+    {
+        // Move to the found row and scroll to it
+        dataGridView1.CurrentCell = row.Cells[0];
+        dataGridView1.FirstDisplayedScrollingRowIndex = row.Index;
+    }
+    catch
+    {
+        // If scrolling fails, the row is still selected
+    }
+
+    dataGridView1.Focus();
+                           
+                        
                         break;
                     }
                 }
