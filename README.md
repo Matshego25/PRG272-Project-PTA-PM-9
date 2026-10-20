@@ -13,9 +13,9 @@ Group Members: Omphemetse Matshego Mosala [603425],
 
 1. Clone the repository:
 ```
-   git clone [repository URL= https://github.com/Matshego25/PRG272-Project-PTA-PM-9.git]
+   git clone https://github.com/Matshego25/PRG272-Project-PTA-PM-9.git
 ```
-2. Open the `.sln` file in Visual Studio.
+2. Open the `.slnx` file in Visual Studio.
 3. Set the build configuration to **Debug** and choose **Build > Build Solution** (Ctrl+Shift+B).
 4. Press **F5** to run.
 
@@ -66,9 +66,11 @@ Average recovery score:   54.00
 ----------------------------------------
 Animals per status:
   Critical:               2
-  ...
+  Serious:                2
+  Stable:                 2
+  Recovering:             3
+  Release-Ready:          3
 ```
-
 ## Known limitations
 
 - Data is stored in plain text files, so there is no database, no search or filtering, and no undo. Deleted records are gone for good.
